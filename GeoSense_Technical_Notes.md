@@ -61,47 +61,93 @@ Because acquisition characteristics and available observations can differ betwee
 
 ## 3. Processing Workflow
 
-The GeoSense workflow consists of the following stages:
+The GeoSense workflow combines the provided NISAR processing utilities with project-specific water detection and temporal change analysis.
 
 ```text
-NISAR L2 GCOV Products
-          │
-          ▼
-Product Discovery & Metadata
-          │
-          ▼
-Spatial Subsetting / AOI
-          │
-          ▼
-Quality Control & Data Preparation
-          │
-          ▼
-Backscatter Visualization
-          │
-          ├──────────────┐
-          ▼              ▼
-      L-band           S-band
-          │              │
-          └──────┬───────┘
-                 ▼
-        Water Detection
-                 │
-                 ▼
-        Spatial Refinement
-                 │
-                 ▼
-       Water Mask Statistics
-                 │
-                 ▼
-      Multi-date Comparison
-                 │
-                 ▼
-      Temporal Change Map
+                 NISAR L2 GCOV Products
+                         │
+                         ▼
+              Product Discovery & Metadata
+                         │
+                         ▼
+                AOI / Spatial Subsetting
+                         │
+                         ▼
+                  Quality Control
+                         │
+                         ▼
+              Backscatter Preparation
+                         │
+                ┌────────┴────────┐
+                ▼                 ▼
+           L-band Analysis    S-band Analysis
+                │                 │
+                ▼                 ▼
+        HH / HV Backscatter   Available S-band
+        Visualization         Backscatter
+                │                 │
+                └────────┬────────┘
+                         ▼
+               Water Detection
+             (Backscatter Threshold)
+                         │
+                         ▼
+                 Spatial Refinement
+                         │
+                         ▼
+                  Water Mask
+                  & Statistics
+                         │
+                         ▼
+              Multi-date Comparison
+                         │
+                         ▼
+              Temporal Change Map
+                         │
+                         ▼
+        Persistent / New / Lost Water
 ```
 
-The processing was implemented using Python and raster/geospatial processing libraries together with the provided NISAR training utilities where required.
+### 3.1 Data Preparation
 
----
+NISAR L2 GCOV products are first identified using their metadata, acquisition information, frequency, polarization, and spatial coverage.
+
+The required area of interest is then extracted from the large satellite product. Quality-control and masking operations are applied before the radar backscatter is used for subsequent analysis.
+
+### 3.2 Radar Backscatter Analysis
+
+The prepared radar data are analysed separately for the available L-band and S-band observations.
+
+The GeoSense workflow generates radar visualizations such as HHHH, HVHV, HHHH/HVHV ratio, and RGB representations where the required channels are available.
+
+These visualizations are used to examine the spatial behaviour of radar backscatter and support the subsequent water-detection process.
+
+### 3.3 Water Detection
+
+Potential water pixels are identified using the radar backscatter characteristics of the analysed scene.
+
+Several thresholds are tested to evaluate the sensitivity of the detected water extent. A working threshold of **−17 dB** is selected for the project-specific analysis.
+
+The resulting threshold mask is then subjected to spatial refinement to reduce isolated detections and produce a more coherent water mask.
+
+### 3.4 Water Statistics
+
+The refined water mask is used to calculate the number and proportion of pixels classified as water within the analysed area.
+
+These statistics provide a quantitative description of the water extent produced by the implemented radar-based method.
+
+### 3.5 Temporal Change Analysis
+
+Water masks generated from different acquisition dates are compared spatially.
+
+For the analysed observations, the temporal workflow compares the September and October 2026 results and classifies pixels into:
+
+- Persistent Water
+- New Water
+- Water Loss / Recession
+- Non-water
+
+The resulting temporal map represents changes in the radar-derived water classification between the available observations.
 
 ## 4. Water Detection
 
