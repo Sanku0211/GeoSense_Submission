@@ -1,0 +1,33 @@
+{
+  "nisar_file": "C:\\Users\\D. Sri Shashank\\Desktop\\Geosense\\NISAR_Data\\NISAR_S2_UR_GCOV_030_098_A_014_3700_DHNA_A_20260912T233809_20260912T233846_P00500_N_F_I_001.h5",
+  "default_frequency": "frequencyA",
+  "aoi": {
+    "xmin": 86.3946,
+    "xmax": 86.6054,
+    "ymin": 25.4098,
+    "ymax": 25.5902
+  },
+  "default_aoi": {
+    "xmin": 86.3946,
+    "xmax": 86.6054,
+    "ymin": 25.4098,
+    "ymax": 25.5902
+  },
+  "validated_projected_aoi": {
+    "xmin": 439112.7266042848,
+    "xmax": 460373.14946205023,
+    "ymin": 2810384.2132703005,
+    "ymax": 2830441.0981284278
+  },
+  "spatial_subset": {
+    "r0": 7332,
+    "r1": 9338,
+    "c0": 19359,
+    "c1": 21485
+  },
+  "spatial_subset_mode": "latlon",
+  "polarimetric_mode": "UNSUPPORTED",
+  "polarimetric_family": "SSAR",
+  "polarimetric_frequency": "frequencyA",
+  "polarimetric_base": "/science/SSAR/GCOV/grids/frequencyA"
+}
