@@ -270,6 +270,12 @@ The temporal classification therefore represents the change detected by the impl
 
 GeoSense demonstrates how NISAR radar observations can be transformed from raw/processed backscatter information into an interpretable geospatial analysis.
 
+### NISAR Curriculum and Supporting Code
+
+This project was developed using the provided NISAR polarimetric training curriculum as a reference and supporting framework. The repository includes selected NISAR training notebooks and the associated `nisar_utils` modules required for data processing and visualization.
+
+The GeoSense-specific notebooks implement the project workflow for water detection and temporal change analysis using NISAR L-band and S-band observations. The included NISAR training material is retained separately as supporting/reference material and is not presented as original GeoSense development.
+
 The workflow combines:
 
 **NISAR data → radar backscatter → water masks → L/S-band fusion → temporal comparison → change classification → visualisation and statistics.**
