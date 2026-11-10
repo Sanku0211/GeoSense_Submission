@@ -1,321 +1,374 @@
-# GeoSense – Technical Notes
+# GeoSense — Technical Notes
 
 ## 1. Project Overview
 
-GeoSense is a NISAR-based geospatial analysis workflow developed for the InGARSS 2026 YP Hackathon. The objective is to use NISAR L2 GCOV radar observations to detect surface water and identify temporal changes between observations acquired at different dates.
+### 1.1 Project Title
 
-The workflow focuses on radar backscatter because Synthetic Aperture Radar (SAR) observations can provide information about surface conditions independently of daylight and are useful for monitoring areas where optical imagery may be affected by cloud cover or illumination conditions.
+**Water Detection and Temporal Change Analysis using NISAR L-band and S-band Data**
 
-GeoSense uses L-band and S-band NISAR observations where suitable data are available. The resulting radar products are processed into water masks and compared across dates to identify persistent water, water loss, newly detected water, and non-water regions.
+### 1.2 Objective
 
-The implementation emphasizes a transparent, reproducible approach based on threshold-based backscatter classification rather than an opaque machine-learning model.
+GeoSense is a radar-based geospatial analysis workflow developed to detect water and identify temporal changes in water-related surface conditions using observations from the NASA-ISRO Synthetic Aperture Radar (NISAR) mission.
+
+The project uses NISAR L-band and S-band radar observations to derive backscatter-based water masks and compare observations acquired on different dates. The workflow is designed to demonstrate how radar measurements can be transformed into interpretable spatial water information and temporal change maps.
+
+The main objectives are:
+
+- Process and visualize NISAR radar observations.
+- Analyse L-band and S-band backscatter behaviour.
+- Detect potential water-covered areas using radar backscatter characteristics.
+- Refine the detected water mask using spatial processing.
+- Compare observations from different acquisition dates.
+- Classify areas as persistent water, newly detected water, water loss/recession, or non-water.
+- Produce interpretable maps and quantitative statistics.
+- Document the limitations and uncertainty associated with the radar-based approach.
 
 ---
 
 ## 2. Data
 
-### 2.1 NISAR Products
+### 2.1 NISAR Data
 
-The primary SAR data used in the workflow are NISAR Level-2 Geocoded Coordinate of Reference System (GCOV) products.
+The analysis uses NISAR Level-2 Ground-Corrected Orthorectified / Geocoded Complex-to-Ground (GCOV) radar products.
 
-The analysis uses:
+The products were obtained for the study area using NISAR observations available through the relevant data distribution platforms.
 
-- L-band SAR observations
-- S-band SAR observations
-- HH polarization products
-- HV polarization products where available
-- Multi-date observations for temporal comparison
+The analysis uses both:
 
-The working temporal analysis compares observations from:
+- **L-band observations**
+- **S-band observations**
+
+The selected observations provide radar backscatter information suitable for surface characterization and water detection.
+
+### 2.2 Spatial Characteristics
+
+The processed GeoSense products used for the analysis have a spatial resolution of approximately **10 m** and use the projected coordinate reference system **EPSG:32645** for the analysed scenes.
+
+The processing workflow uses spatial subsets of the NISAR observations rather than processing the complete large satellite products whenever possible.
+
+### 2.3 Temporal Observations
+
+Two observations were used for the temporal comparison:
 
 - **12 September 2026**
 - **30 October 2026**
 
-The available L-band and S-band observations do not necessarily have identical acquisition conditions or dates. Therefore, the workflow documents the actual available observations rather than assuming that L-band and S-band measurements form perfectly matched acquisitions.
+The temporal analysis compares the available radar-derived information from these dates.
 
-The processed GeoTIFF products used in the analysis have a spatial resolution of approximately **10 m** and use **EPSG:32645 (WGS 84 / UTM Zone 45N)** for the working scene.
-
-### 2.2 Data Sources
-
-NISAR data were obtained from the available NISAR data distribution sources, including the NASA ASF DAAC/Vertex catalogue and the NRSC/ISRO Bhoonidhi NISAR catalogue.
-
-The original NISAR training notebooks supplied for the hackathon were used as references for product handling, visualization and processing.
+Because acquisition characteristics and available observations can differ between dates, the resulting temporal classification represents changes detected by the implemented radar-based method rather than an independently validated measurement of physical water-volume change.
 
 ---
 
 ## 3. Processing Workflow
 
-The GeoSense workflow consists of the following major stages:
+The GeoSense workflow consists of the following stages:
 
-**NISAR L2 GCOV products**
+```text
+NISAR L2 GCOV Products
+          │
+          ▼
+Product Discovery & Metadata
+          │
+          ▼
+Spatial Subsetting / AOI
+          │
+          ▼
+Quality Control & Data Preparation
+          │
+          ▼
+Backscatter Visualization
+          │
+          ├──────────────┐
+          ▼              ▼
+      L-band           S-band
+          │              │
+          └──────┬───────┘
+                 ▼
+        Water Detection
+                 │
+                 ▼
+        Spatial Refinement
+                 │
+                 ▼
+       Water Mask Statistics
+                 │
+                 ▼
+      Multi-date Comparison
+                 │
+                 ▼
+      Temporal Change Map
+```
 
-↓
-
-**Product inspection and metadata verification**
-
-↓
-
-**Backscatter extraction**
-
-↓
-
-**Conversion to decibels**
-
-↓
-
-**Water detection**
-
-↓
-
-**Spatial cleanup of water masks**
-
-↓
-
-**Multi-date comparison**
-
-↓
-
-**Temporal water-change classification**
-
-↓
-
-**Change maps and quantitative statistics**
-
-### 3.1 Backscatter Preparation
-
-Radar backscatter values are converted to decibel scale using:
-
-`dB = 10 × log10(backscatter)`
-
-Working in decibels makes the radar backscatter values easier to interpret and allows a consistent threshold to be applied during water detection.
-
-The workflow also preserves the spatial characteristics of the original geocoded product so that resulting masks and change maps remain spatially referenced.
+The processing was implemented using Python and raster/geospatial processing libraries together with the provided NISAR training utilities where required.
 
 ---
 
 ## 4. Water Detection
 
-Water generally produces relatively low radar backscatter compared with many surrounding land surfaces because of the interaction between the radar signal and relatively smooth water surfaces.
+### 4.1 Radar Backscatter
 
-GeoSense therefore applies a threshold-based classification to identify candidate water pixels.
+Radar backscatter measures the amount of radar energy returned to the sensor after interacting with the Earth's surface.
 
-A working threshold of approximately **−17 dB** was selected after testing multiple thresholds.
+Water surfaces can produce relatively low backscatter under suitable observation conditions because smooth water surfaces tend to produce specular reflection away from the radar sensor.
 
-The tested L-band threshold candidates included approximately:
+Therefore, low radar backscatter can be used as an indicator for potential water-covered areas.
 
-- −16 dB
-- −17 dB
-- −18 dB
-- −19 dB
+The GeoSense workflow converts and analyses radar backscatter in decibel (dB) form.
 
-The −17 dB threshold was selected as a practical working value because it provided a more useful balance between detecting water and limiting excessive false-positive regions in the working scene.
+### 4.2 Threshold-Based Detection
 
-The threshold is treated as an empirical working parameter rather than a universal physical boundary. Its suitability can vary with acquisition geometry, surface conditions, frequency, polarization and scene characteristics.
+A backscatter threshold was evaluated to identify potential water pixels.
 
-### 4.1 Spatial Refinement
+Several thresholds were tested:
 
-The initial threshold mask can contain isolated pixels and small fragmented regions caused by radar speckle and heterogeneous surface backscatter.
+| Threshold | Pixels detected | Approx. proportion |
+|---|---:|---:|
+| < −16 dB | 869,500 | 20.39% |
+| < −17 dB | 430,139 | 10.09% |
+| < −18 dB | 131,591 | 3.09% |
+| < −19 dB | 30,357 | — |
 
-GeoSense therefore applies spatial processing to improve the usability of the water mask. Small regions are removed and morphological/spatial gap-closing operations are used where appropriate.
+The **−17 dB threshold** was selected as a practical working threshold for the GeoSense analysis because it provided a useful separation between low-backscatter candidate water regions and the surrounding non-water areas while avoiding the excessive extent obtained at the less restrictive threshold.
 
-The resulting mask is then used for temporal comparison.
+The threshold is a working analytical parameter rather than a universal physical definition of water.
+
+### 4.3 L-band and S-band Information
+
+Both L-band and S-band observations were considered in the workflow.
+
+Where compatible observations were available, the analysis compared their backscatter behaviour and used the available information to support water detection.
+
+The response of radar backscatter depends on several factors, including:
+
+- Surface roughness
+- Incidence geometry
+- Soil and vegetation conditions
+- Water surface conditions
+- Sensor frequency
+- Polarization
+- Acquisition date
+
+Consequently, water classification cannot be interpreted from a single backscatter value without considering the observation conditions.
+
+### 4.4 Spatial Refinement
+
+The initial threshold-based water mask was further processed spatially to reduce isolated pixels and improve the spatial coherence of detected water regions.
+
+The refined mask provides a more interpretable representation of the detected water extent than the raw pixel-level threshold alone.
+
+The refined result produced an estimated water proportion of approximately **15.76%** for the analysed scene.
+
+This value is an estimate produced by the implemented processing workflow and should not be interpreted as independently validated ground-truth water coverage.
 
 ---
 
 ## 5. Temporal Change Analysis
 
-Temporal analysis is performed by comparing water masks generated for different observation dates.
+### 5.1 Objective
 
-For each pixel, the water classification from the earlier and later observations is compared.
+Temporal analysis was performed to identify differences between radar-derived water masks from different acquisition dates.
 
-Four main classes are identified:
+The comparison used observations from:
 
-| Classification | Meaning |
-|---|---|
-| Persistent Water | Water detected on both dates |
-| Water Loss / Recession | Water detected on the earlier date but not the later date |
-| New Water | Water detected on the later date but not the earlier date |
-| Non-water | Not classified as water in either observation |
+- **12 September 2026**
+- **30 October 2026**
 
-This produces a spatially explicit temporal change map.
+The water masks from the available dates were spatially compared to identify areas that remained classified as water and areas where the classification changed.
 
-The approach allows the workflow to identify where water conditions remained stable and where the detected water extent changed between observations.
+### 5.2 Change Classes
 
-The change analysis is intended as **water-surface change detection**. A newly detected water region is not automatically interpreted as flooding, rainfall-induced inundation, or another specific hydrological event without independent supporting evidence.
+The temporal analysis produced four main categories:
+
+- **Persistent Water** — classified as water in both observations.
+- **New Water** — classified as water in the later observation but not in the earlier observation.
+- **Water Loss / Recession** — classified as water in the earlier observation but not in the later observation.
+- **Non-water** — not classified as water in either observation.
+
+The resulting temporal change map provides a spatial representation of the radar-derived classification changes.
+
+### 5.3 Interpretation
+
+The temporal classification identifies where the implemented radar-based water detection method changed between observations.
+
+A detected change can be caused by actual surface-water change, but it can also result from differences in:
+
+- Radar acquisition geometry
+- Surface roughness
+- Soil moisture
+- Vegetation
+- Atmospheric/environmental conditions
+- Sensor frequency or polarization
+- Processing differences
+- Threshold sensitivity
+
+Therefore, the temporal classification should **not automatically be interpreted as ground-truth physical water change**.
 
 ---
 
 ## 6. L-band and S-band Comparison
 
-GeoSense incorporates both L-band and S-band observations where suitable data are available.
+The project evaluates the usefulness of both NISAR L-band and S-band observations for water detection.
 
-The purpose of using both frequencies is to examine how the detected water patterns vary between radar frequencies and to explore the usefulness of combining information from different NISAR observations.
+### 6.1 L-band
 
-The available data do not provide perfectly matched L-band and S-band acquisitions for every date. Consequently, the L-band/S-band comparison is interpreted with this limitation in mind.
+L-band radar has a longer wavelength and can interact differently with vegetation, soil, and surface structures compared with shorter-wavelength radar observations.
 
-Differences between results may arise from:
+The available L-band data provided the primary basis for the radar backscatter analysis and water detection workflow.
 
-- Acquisition date
-- Viewing geometry
-- Radar frequency
-- Polarization
-- Surface conditions
-- Spatial coverage
-- Preprocessing differences
+### 6.2 S-band
 
-Therefore, the combined result is treated as a complementary analysis rather than proof that frequency fusion is universally superior to a single-frequency approach.
+S-band observations provide a different radar frequency and therefore potentially provide complementary information about surface scattering.
+
+The available S-band observations were incorporated where suitable data were available.
+
+However, the availability of matching L-band and S-band acquisitions is not uniform across the required dates and study area.
+
+### 6.3 Comparison
+
+The analysis demonstrates that radar frequency can influence the observed backscatter response and therefore the resulting water classification.
+
+A direct numerical comparison between L-band and S-band should be interpreted carefully because the observations may not have identical acquisition conditions, spatial coverage, temporal timing, or polarization configuration.
+
+The project therefore treats the L-band/S-band comparison as an observational and methodological assessment rather than claiming that one frequency universally provides superior water detection.
 
 ---
 
 ## 7. Results
 
-The GeoSense workflow produces several types of outputs:
+### 7.1 Radar Visualizations
 
-### 7.1 Radar Visualization
+The GeoSense workflow generated radar visualizations including:
 
-The processed NISAR products can be visualized as radar backscatter images and RGB-style combinations derived from available radar channels.
+- HHHH backscatter
+- HVHV backscatter
+- HHHH/HVHV ratio in dB
+- RGB combinations derived from the radar channels
 
-These visualizations provide spatial context for interpreting the water masks and temporal changes.
+These visualizations were used to inspect the spatial behaviour of radar backscatter before water classification.
 
-### 7.2 Water Masks
+### 7.2 Water Detection
 
-The water detection stage produces spatial water masks for the available observations.
+The threshold analysis demonstrated the sensitivity of the detected water extent to the selected backscatter threshold.
 
-The masks provide:
+The −17 dB threshold was selected as the working threshold for the GeoSense workflow.
 
-- Detected water pixels
-- Spatial distribution of detected water
-- Candidate water extent
-- Input for subsequent temporal comparison
+The subsequent spatial refinement produced a more coherent water mask and an estimated water proportion of approximately **15.76%** for the analysed scene.
 
-### 7.3 Temporal Change Maps
+### 7.3 Temporal Results
 
-The temporal analysis produces a multi-class change map showing:
+The temporal analysis generated a change map showing:
 
 - Persistent water
+- New water
 - Water loss/recession
-- Newly detected water
 - Non-water
 
-The resulting maps allow changes to be interpreted spatially rather than only through a single total-area value.
+The map provides a spatial representation of where the radar-based water classification changed between the September and October observations.
 
-### 7.4 Quantitative Statistics
-
-The workflow also calculates pixel-based statistics for the detected water and temporal classes.
-
-Because the working products have approximately 10 m spatial resolution, each pixel represents approximately 100 m² on the ground, subject to the geocoding and projection of the product.
-
-Area calculations are derived from the number of classified pixels and the product spatial resolution.
+The results demonstrate the feasibility of using NISAR radar observations for multi-date water-related change analysis.
 
 ---
 
 ## 8. Validation and Uncertainty
 
-An independent reference dataset suitable for generating a formal validation label set was not available for the current implementation.
+The GeoSense workflow is primarily an analytical demonstration based on radar backscatter characteristics. Independent ground-truth water labels were not available for a rigorous supervised accuracy assessment of the analysed observations.
 
-Therefore, GeoSense does **not** report fabricated accuracy, precision, recall, F1-score, IoU or confusion-matrix values.
-
-Instead, validation is currently based on qualitative inspection of:
-
-- Radar backscatter images
-- Water-mask spatial patterns
-- Threshold sensitivity
-- Temporal change maps
-- Spatial consistency of detected regions
-- Consistency between available radar observations
-
-This is an important limitation of the current implementation.
+Therefore, conventional metrics such as overall accuracy, precision, recall, IoU, or F1-score are **not reported as validated performance metrics**.
 
 ### 8.1 Sources of Uncertainty
 
-Potential sources of error include:
+The main sources of uncertainty include:
 
-- Radar speckle
-- Mixed land/water pixels
-- Vegetation over water
-- Rough water surfaces
-- Wet soil and other low-backscatter surfaces
-- Threshold sensitivity
-- Differences in acquisition geometry
-- Differences between observation dates
-- Differences between L-band and S-band observations
-- Spatial registration and coverage differences
+- **Threshold sensitivity:** Different backscatter thresholds produce different water extents.
+- **Acquisition differences:** Observations from different dates may have different radar acquisition conditions.
+- **Surface conditions:** Soil moisture, vegetation, surface roughness, and water-surface conditions can influence backscatter.
+- **Frequency differences:** L-band and S-band interact differently with surface and vegetation characteristics.
+- **Polarization:** Different polarization channels can respond differently to water and surrounding land cover.
+- **Spatial alignment:** Small spatial registration differences can influence pixel-level temporal comparisons.
+- **Data availability:** Matching L-band and S-band observations are not necessarily available for every date and location.
+- **Lack of independent reference labels:** Without suitable ground-truth or reference water masks, quantitative classification accuracy cannot be established reliably.
 
-The −17 dB threshold should therefore be considered a scene-specific working parameter rather than a universally valid water threshold.
+The temporal classification therefore represents the change detected by the implemented radar-based method and should not automatically be interpreted as a ground-truth measurement of physical water change.
 
----
+### 8.2 NISAR Curriculum and Supporting Code
 
-## 9. Reproducibility
+The GeoSense workflow was developed using the provided NISAR polarimetric training curriculum as a reference and supporting framework.
 
-The project is implemented using Python and Jupyter notebooks.
+The repository includes the relevant NISAR training notebooks and associated `nisar_utils` modules required by the workflow for NISAR data processing, visualization, and supporting operations.
 
-The processing environment uses scientific and geospatial Python libraries including:
+The **GeoSense-specific notebooks** implement the project-specific workflow for water detection and temporal change analysis using NISAR L-band and S-band observations.
 
-- NumPy
-- SciPy
-- Pandas
-- Matplotlib
-- Rasterio
-- h5py
-- Xarray
-- GeoPandas
-- Shapely
-- JupyterLab
+The provided NISAR curriculum material is retained separately as supporting/reference material and is not presented as original GeoSense development.
 
-The repository contains the GeoSense analysis notebooks and the supporting NISAR training workflow used to process and interpret the data.
+The distinction between the two components is therefore:
 
-The main GeoSense analysis notebooks are:
+```text
+Provided NISAR Curriculum
+        │
+        ├── Training / reference notebooks
+        ├── NISAR processing utilities
+        └── Supporting workflow
+                │
+                ▼
+        GeoSense Development
+                │
+                ├── Water detection
+                ├── Backscatter threshold analysis
+                ├── Spatial refinement
+                ├── L/S comparison
+                └── Temporal change analysis
+```
 
-- `GeoSense_Water_Analysis.ipynb`
-- `GeoSense_Temporal_Change_Analysis.ipynb`
-- `GeoSense_Final_Analysis-Submission.ipynb`
-
-The final submission notebook brings the major analysis components together into a reproducible analysis workflow.
-
----
-
-## 10. Limitations
-
-The current implementation has several limitations.
-
-First, the available L-band and S-band observations are not perfectly matched in acquisition date and conditions. Therefore, differences between frequency-specific results cannot be attributed entirely to radar frequency.
-
-Second, the water classifier currently relies on an empirical backscatter threshold rather than a supervised classification model trained using independently labelled reference data.
-
-Third, a formal independent accuracy assessment could not be completed because a suitable reference dataset was not available for the selected observation period and AOI.
-
-Fourth, the current workflow identifies changes in radar-derived water classification. It does not independently determine the physical cause of a newly detected water region.
-
-These limitations are explicitly retained so that the reported results remain traceable and scientifically defensible.
+This separation allows the repository to remain reproducible while clearly distinguishing the provided NISAR training material from the project-specific GeoSense analysis.
 
 ---
 
-## 11. Conclusions
+## 9. Limitations
 
-GeoSense demonstrates a reproducible workflow for extracting water information from NISAR L2 GCOV observations and analysing temporal changes in detected water extent.
+The current GeoSense implementation has several limitations.
 
-The workflow combines radar backscatter analysis, threshold-based water detection, spatial refinement and multi-date comparison to produce interpretable water masks, temporal change maps and quantitative statistics.
+First, the water-detection threshold is empirical and may not generalize to every NISAR acquisition, geographic region, surface condition, or radar configuration.
 
-The approach provides a practical baseline for NISAR-based water monitoring while remaining transparent about the limitations caused by threshold selection, observation differences and the absence of independent reference labels.
+Second, the available L-band and S-band observations are not necessarily perfectly matched in time, geometry, polarization, or spatial coverage. Consequently, direct temporal and cross-frequency comparisons must be interpreted carefully.
 
-Future improvements could include independently labelled validation data, adaptive or statistically derived thresholds, improved co-registration between observations, and more systematic comparison of L-band, S-band and polarization-specific features.
+Third, the absence of suitable independent reference labels prevents a rigorous quantitative accuracy assessment.
+
+Fourth, radar backscatter can be affected by factors other than water presence, including soil moisture, vegetation, surface roughness, incidence geometry, and polarization.
+
+Finally, the temporal change map represents changes in the **radar-derived classification**. Additional ground observations or independent reference datasets would be required to establish the physical validity of each detected change.
 
 ---
 
-## 12. References
+## 10. Conclusions
 
-1. NASA/ASF DAAC – NISAR L2 GCOV product documentation and data catalogue.
+GeoSense demonstrates a practical workflow for analysing NISAR radar observations for water detection and temporal change analysis.
 
-2. NRSC/ISRO Bhoonidhi – NISAR data catalogue and product information.
+The project combines NISAR L-band and S-band observations with backscatter analysis, threshold-based classification, spatial refinement, and multi-date comparison.
 
-3. NISAR Polarimetric Training materials supplied for the InGARSS 2026 YP Hackathon.
+A working threshold of **−17 dB** was selected after sensitivity testing, and the resulting water masks were used to generate spatial statistics and temporal change maps.
 
-4. Rasterio documentation – geospatial raster data processing and GeoTIFF handling.
+The analysis demonstrates the potential of NISAR radar observations for monitoring water-related surface changes while also highlighting the importance of acquisition conditions, polarization, radar frequency, threshold selection, and independent validation.
 
-5. NumPy documentation – numerical array processing.
+The current implementation should therefore be viewed as a reproducible radar-analysis workflow and demonstration rather than a fully validated operational water-monitoring system.
 
-6. Matplotlib documentation – scientific visualization.
+---
 
-7. GeoPandas and Shapely documentation – geospatial data processing.
+## 11. Summary
 
-All datasets, software libraries, training materials and third-party resources used by the workflow should be appropriately cited in the final submission.
+GeoSense demonstrates how NISAR radar observations can be transformed from processed backscatter information into an interpretable geospatial analysis.
+
+The workflow covers:
+
+- NISAR L2 GCOV product processing
+- L-band and S-band radar analysis
+- Backscatter visualization
+- Threshold-based water detection
+- Spatial water-mask refinement
+- Multi-date temporal comparison
+- Water-change classification
+- Quantitative water-area estimation
+- Uncertainty and limitation assessment
+
+The project also maintains the provided NISAR training notebooks and supporting utilities required for reproducibility while clearly separating them from the GeoSense-specific analysis developed for this submission.
+
+Overall, GeoSense provides a reproducible foundation for NISAR-based water detection and temporal change analysis and can be extended in future work through additional observations, improved adaptive classification methods, independent validation datasets, and more comprehensive polarization-aware analysis.
